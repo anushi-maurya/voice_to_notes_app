@@ -5,3 +5,5 @@ transformers
 fpdf2
 numpy
 pandas
+faster-whisper
+fpdf
