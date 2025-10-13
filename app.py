@@ -5,37 +5,28 @@ import re
 from pathlib import Path
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
+from faster_whisper import WhisperModel
+from transformers import pipeline
+import torch
+
 
 
 # Load libraries inside function (so app starts even if imports take time)
 @st.cache_resource
 def load_models():
-    # faster-whisper for transcription
-    try:
-        from faster_whisper import WhisperModel
-    except Exception as e:
-        st.error("faster-whisper not found or failed to import. Make sure it's installed.")
-        raise
+    # Streamlit Cloud does not support GPU, so force CPU
+    device = "cpu"
 
-    from transformers import pipeline
-    import torch
+    # Use smallest models to reduce memory and load time
+    whisper_model = WhisperModel("tiny", device=device)
+    summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6", device=-1)
+    flash_gen = pipeline("text2text-generation", model="google/flan-t5-small", device=-1)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    # Choose smaller models for demo and speed
-    whisper_model = WhisperModel("small", device=device)  # try "tiny" or "small"
-    # Summarizer: lightweight distilBART
-    summarizer = pipeline(
-        "summarization",
-        model="sshleifer/distilbart-cnn-12-6",
-        device=0 if device == "cuda" else -1
-    )
-    # FLAN-T5 for instruction style text2text (flashcards)
-    flash_gen = pipeline(
-        "text2text-generation",
-        model="google/flan-t5-small",
-        device=0 if device == "cuda" else -1
-    )
-    return whisper_model, summarizer, flash_gen, device
+    return whisper_model, summarizer, flash_gen
+
+
+
+
 
 def transcribe_with_faster_whisper(model, audio_path):
     # returns segments list of dicts with start/end/text and a full transcript
