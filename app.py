@@ -29,11 +29,22 @@ def load_models():
 
 
 def transcribe_with_faster_whisper(model, audio_path):
-    # returns segments list of dicts with start/end/text and a full transcript
-    segments, info = model.transcribe(audio_path, beam_size=5)
-    transcript = " ".join([s.text.strip() for s in segments if s.text])
+    # Transcribe using faster-whisper and handle both old/new API formats
+    result = model.transcribe(audio_path, beam_size=5)
+
+    # Some versions return 2 values (segments, info); others 3 (segments, info, text)
+    if isinstance(result, tuple) and len(result) == 3:
+        segments, info, text = result
+    elif isinstance(result, tuple) and len(result) == 2:
+        segments, info = result
+        text = " ".join([s.text.strip() for s in segments if s.text])
+    else:
+        raise ValueError("Unexpected return format from faster-whisper model")
+
+    transcript = text.strip()
     segs = [{"start": s.start, "end": s.end, "text": s.text.strip()} for s in segments]
     return segs, transcript
+
 
 def chunk_text(text, max_chars=2000):
     # naive chunk by characters (keeps sentences intact roughly)
